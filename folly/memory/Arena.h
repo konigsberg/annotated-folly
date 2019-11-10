@@ -29,6 +29,7 @@
 #include <folly/Memory.h>
 #include <folly/lang/Align.h>
 #include <folly/lang/CheckedMath.h>
+/* checkedAdd */
 #include <folly/lang/Exception.h>
 #include <folly/memory/Malloc.h>
 
@@ -57,6 +58,7 @@ namespace folly {
  */
 template <class Alloc>
 struct ArenaAllocatorTraits;
+
 template <class Alloc>
 class Arena {
  public:
@@ -77,6 +79,13 @@ class Arena {
           folly::to<std::string>("Invalid maxAlign: ", maxAlign_)));
     }
   }
+  /* Arena's ctor. allocAndSize_ is something related to allocator.
+  ptr_ refers to the current end pointer of arena.
+  end_ is the end position of arena.
+  totalAllocatedSize_ tells by itself.
+  What is bytesUsed_, size_Limit_ and maxAlign_?
+  Block is an inner class.
+  */
 
   ~Arena();
 
@@ -98,6 +107,14 @@ class Arena {
     assert(isAligned(r));
     return r;
   }
+  /*
+  Before allocating, ptr_ should never pass the end_ ptr.
+  If there is still enough room after this allocating, just move
+  forward the ptr_. Because is size is rounded up, both r and ptr_
+  are aligned.
+  The allocateSlow() function add a new block. See Arena-inl.h for its 
+  implementation.
+  */
 
   void deallocate(void* /* p */, size_t = 0) {
     // Deallocate? Never!
@@ -149,6 +166,17 @@ class Arena {
     Block() = default;
     ~Block() = default;
   };
+  /* This is the definition of struct Block.
+  `alignas` is a C macro. Please refer to
+  file:///Users/ouakira/Documents/cppreference/en/c/language/alignas.html.
+  Block uses the member hook of Boost intrusive container. 
+  Refer to Boost library doc for intrusive container, member hook, and base hook.
+  start() returns the start address of raw memory.
+  allocate() and deallocate() are implemented in `Arena-inl.h`.
+  ## Questions:
+  - Why use a class forward declaration ahead of Block's definition?
+  - sizeof(BlockLink) == 1?
+  */
 
  public:
   static constexpr size_t kDefaultMinBlockSize = 4096 - sizeof(Block);
@@ -251,6 +279,8 @@ struct AllocatorHasTrivialDeallocate<SysArena> : std::true_type {};
 
 template <typename T, typename Alloc>
 using ArenaAllocator = CxxAllocatorAdaptor<T, Arena<Alloc>>;
+/* SysAllocator and CxxAllocatorAdaptor are defined in folly/Memory.h.
+*/
 
 template <typename T>
 using SysArenaAllocator = ArenaAllocator<T, SysAllocator<void>>;

@@ -392,6 +392,8 @@ class SysAllocator {
     return false;
   }
 };
+/* lift_void_to_char is actually char.
+*/
 
 class DefaultAlign {
  private:

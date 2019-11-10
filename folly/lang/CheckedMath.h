@@ -34,4 +34,7 @@ bool checked_add(T* result, T a, T b) {
     return false;
   }
 }
+/* The code is compiled only when T is an unsigned type?
+Return false means the addition will cause overflow.
+*/
 } // namespace folly

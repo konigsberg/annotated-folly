@@ -33,12 +33,23 @@ Arena<Alloc>::Block::allocate(Alloc& alloc, size_t size, bool allowSlack) {
   void* mem = std::allocator_traits<Alloc>::allocate(alloc, allocSize);
   return std::make_pair(new (mem) Block(), allocSize - sizeof(Block));
 }
+/* The struct Block is actually a pointer in slist. This function allocate
+a block of memory, consists of a Block pointer and a chunk of memory.
+So sizeof(Block) is the slist pointer size. The actual data should be store in the 
+memory following the pointer, which is the Block().start() points to.
+alloate finally return the address of Block and the length of actual usable memory, 
+which is allocSize - sizeof(Block) and should be equal to the parameter `size`.
+In other word, actually parameter `size` plus sizeof(Block) is allocated.
+The return statement constructs a Block with pointer mem.
+*/
 
 template <class Alloc>
 void Arena<Alloc>::Block::deallocate(Alloc& alloc) {
   this->~Block();
   std::allocator_traits<Alloc>::deallocate(alloc, this, 1);
 }
+/* I have never see calling dtor directly like this. TOBE understood.
+*/
 
 template <class Alloc>
 void* Arena<Alloc>::allocateSlow(size_t size) {
@@ -75,6 +86,16 @@ void* Arena<Alloc>::allocateSlow(size_t size) {
   totalAllocatedSize_ += p.second + sizeof(Block);
   return start;
 }
+/* checked_add is a overflow-safe adding function.
+allocSize = max(size, minBlockSize()) + sizeof(Block).
+We will actually allocate memory_size + sizeof(Block) bytes of memory (see commment
+on Block::allocate()). The data size is equal to max(size, minBlockSize()).
+If size is greater, we will allocate a big chunk; Otherwise, a minBlockSize() chunk
+is allocated. ptr_ points to the end of memory requested. end_ points the the end of
+memory actually allocated.
+The Block pointer returned by Block::allocate() is pushed back to the blocks_ slist.
+## Questions:
+*/
 
 template <class Alloc>
 void Arena<Alloc>::merge(Arena<Alloc>&& other) {
@@ -84,6 +105,9 @@ void Arena<Alloc>::merge(Arena<Alloc>&& other) {
   totalAllocatedSize_ += other.totalAllocatedSize_;
   other.totalAllocatedSize_ = 0;
 }
+/* See file:///Users/ouakira/Documents/boost_1_66_0/doc/html/boost/intrusive/slist.html.
+`other` is inserted before `blocks_`.
+*/
 
 template <class Alloc>
 Arena<Alloc>::~Arena() {
